@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sonos Auth</title>
+  </head>
+  <body>
+    <h1>Processing Sonos Login…</h1>
+    <pre id="output"></pre>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+      const state = params.get("state");
+
+      if (code) {
+        fetch("/exchange-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code,
+            redirect_uri: window.location.origin + "/redirected.html",
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.access_token) {
+              // Save token to localStorage
+              localStorage.setItem("sonos_access_token", data.access_token);
+              const expiresAt = Date.now() + data.expires_in * 1000; // store expiry time
+              localStorage.setItem("sonos_access_token_expires", expiresAt);
+              document.getElementById("output").textContent =
+                "Access Token saved!";
+
+              // Redirect to control page
+              window.location.href = "/control.html";
+              
+            } else {
+              document.getElementById("output").textContent =
+                "Failed to get access token";
+            }
+          })
+          .catch((err) => console.error(err));
+      } else {
+        document.getElementById("output").textContent =
+          "No authorization code found.";
+      }
+    </script>
+  </body>
+</html>
