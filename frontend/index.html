@@ -1,4 +1,14 @@
-<script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sonos Auth Demo</title>
+</head>
+<body>
+  <h1>Connect Your Sonos</h1>
+  <button id="loginBtn">Enable Sonos Integration</button>
+
+ <script>
   const REDIRECT_URI = "https://khaisonoscontrol.onrender.com/redirected.html";
   const state = Math.random().toString(36).substring(2);
 
@@ -12,3 +22,6 @@
     window.location.href = data.url;
   });
 </script>
+
+</body>
+</html>
