@@ -27,10 +27,11 @@
   </div>
 
   <script>
-    const MIN_FIRMWARE = "64.10"; // example minimum version
+    const MIN_FIRMWARE = "64.10";
     const token = localStorage.getItem("sonos_access_token");
     const expires = localStorage.getItem("sonos_access_token_expires");
 
+    // Token check
     if (!token || Date.now() > expires) {
       alert("Your Sonos session expired. Please log in again.");
       localStorage.removeItem("sonos_access_token");
@@ -46,28 +47,38 @@
     const pauseBtn = document.getElementById("pauseBtn");
     const nextBtn = document.getElementById("nextBtn");
 
-    async function getHouseholds() {
-      const res = await fetch("https://api.ws.sonos.com/control/api/v1/households", {
-        headers: { "Authorization": `Bearer ${token}`, "accept": "application/json" }
+    function versionToArray(v) {
+      return v.split('.').map(Number);
+    }
+
+    function compareVersions(a, b) {
+      const [aMajor, aMinor] = versionToArray(a);
+      const [bMajor, bMinor] = versionToArray(b);
+      if (aMajor !== bMajor) return aMajor - bMajor;
+      return aMinor - bMinor;
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url, {
+        headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
       });
-      const data = await res.json();
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function getHouseholds() {
+      const data = await fetchJson("https://api.ws.sonos.com/control/api/v1/households");
       return data.households || [];
     }
 
     async function getGroups(householdId) {
-      const res = await fetch(`https://api.ws.sonos.com/control/api/v1/households/${householdId}/groups`, {
-        headers: { "Authorization": `Bearer ${token}`, "accept": "application/json" }
-      });
-      const data = await res.json();
+      const data = await fetchJson(`https://api.ws.sonos.com/control/api/v1/households/${householdId}/groups`);
       return data.groups || [];
     }
 
     async function getPlayers(playerIds) {
-      // Fetch info for each player
       const promises = playerIds.map(id =>
-        fetch(`https://api.ws.sonos.com/control/api/v1/players/${id}`, {
-          headers: { "Authorization": `Bearer ${token}`, "accept": "application/json" }
-        }).then(res => res.json())
+        fetchJson(`https://api.ws.sonos.com/control/api/v1/players/${id}`)
       );
       return Promise.all(promises);
     }
@@ -83,60 +94,75 @@
     }
 
     async function init() {
-      statusEl.textContent = "Fetching households...";
-      const households = await getHouseholds();
-      if (!households.length) {
-        statusEl.textContent = "No households found.";
-        return;
+      try {
+        statusEl.textContent = "Fetching households...";
+        const households = await getHouseholds();
+        if (!households.length) {
+          statusEl.textContent = "No households found.";
+          return;
+        }
+        populateSelect(householdSelect, households);
+        document.getElementById("householdSection").style.display = "block";
+        await loadGroups(householdSelect.value);
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Failed to fetch households.";
       }
-
-      populateSelect(householdSelect, households);
-      document.getElementById("householdSection").style.display = "block";
-
-      await loadGroups(householdSelect.value);
     }
 
-    async function loadGroups(householdId) {
-      statusEl.textContent = "Fetching groups...";
-      const groups = await getGroups(householdId);
-      if (!groups.length) {
-        statusEl.textContent = "No groups found.";
-        return;
-      }
+    let currentGroups = [];
 
-      populateSelect(groupSelect, groups);
-      document.getElementById("groupSection").style.display = "block";
-      await loadPlayers(groupSelect.value);
+    async function loadGroups(householdId) {
+      try {
+        statusEl.textContent = "Fetching groups...";
+        currentGroups = await getGroups(householdId);
+        if (!currentGroups.length) {
+          statusEl.textContent = "No groups found.";
+          return;
+        }
+        populateSelect(groupSelect, currentGroups);
+        document.getElementById("groupSection").style.display = "block";
+        await loadPlayers(groupSelect.value);
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Failed to fetch groups.";
+      }
     }
 
     async function loadPlayers(groupId) {
-      statusEl.textContent = "Fetching players...";
-      const selectedGroup = (await getGroups(householdSelect.value)).find(g => g.id === groupId);
-      if (!selectedGroup) return;
-
-      const players = await getPlayers(selectedGroup.playerIds);
-      playersList.innerHTML = "";
-
-      let allSupported = true;
-      players.forEach(player => {
-        const li = document.createElement("li");
-        li.textContent = `${player.name} — Firmware: ${player.firmwareVersion}`;
-        playersList.appendChild(li);
-
-        if (player.firmwareVersion < MIN_FIRMWARE) {
-          allSupported = false;
+      try {
+        statusEl.textContent = "Fetching players...";
+        const selectedGroup = currentGroups.find(g => g.id === groupId);
+        if (!selectedGroup) {
+          statusEl.textContent = "Group not found.";
+          return;
         }
-      });
 
-      if (!allSupported) {
-        playBtn.disabled = pauseBtn.disabled = nextBtn.disabled = true;
-        statusEl.textContent = "Some players do not meet minimum firmware version!";
-      } else {
-        playBtn.disabled = pauseBtn.disabled = nextBtn.disabled = false;
+        const players = await getPlayers(selectedGroup.playerIds);
+        playersList.innerHTML = "";
+
+        let allSupported = true;
+        players.forEach(player => {
+          const li = document.createElement("li");
+          li.textContent = `${player.name} — Firmware: ${player.firmwareVersion}`;
+          playersList.appendChild(li);
+
+          if (compareVersions(player.firmwareVersion, MIN_FIRMWARE) < 0) {
+            allSupported = false;
+          }
+        });
+
+        // playBtn.disabled = pauseBtn.disabled = nextBtn.disabled = !allSupported;
+        // statusEl.textContent = allSupported 
+        //   ? "Ready to control Sonos groups." 
+        //   : "Some players do not meet minimum firmware version!";
         statusEl.textContent = "Ready to control Sonos groups.";
-      }
 
-      document.getElementById("playersSection").style.display = "block";
+        document.getElementById("playersSection").style.display = "block";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Failed to fetch players.";
+      }
     }
 
     householdSelect.addEventListener("change", () => loadGroups(householdSelect.value));
@@ -144,23 +170,20 @@
 
     async function sendCommand(action) {
       const groupId = groupSelect.value;
-      if (!groupId) return alert("Select a group first.");
+      if (!groupId) return statusEl.textContent = "Select a group first.";
 
-      const url = `https://api.ws.sonos.com/control/api/v1/groups/${groupId}/playback/${action}`;
       try {
-        const res = await fetch(url, {
+        statusEl.textContent = `Sending '${action}' command...`;
+        const res = await fetch(`https://api.ws.sonos.com/control/api/v1/groups/${groupId}/playback/${action}`, {
           method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "accept": "application/json"
-          }
+          headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
         });
 
-        if (res.ok) alert(`Command '${action}' sent successfully.`);
-        else alert(`Error: ${await res.text()}`);
+        if (!res.ok) throw new Error(await res.text());
+        statusEl.textContent = `Command '${action}' sent successfully.`;
       } catch (err) {
         console.error(err);
-        alert("Failed to send command.");
+        statusEl.textContent = `Failed to send '${action}' command.`;
       }
     }
 
