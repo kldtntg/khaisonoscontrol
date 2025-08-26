@@ -1,0 +1,9 @@
+{
+  "name": "sonos-integration",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm install --prefix backend && npm install --prefix frontend && echo 'No frontend build needed'",
+    "start": "npm run start --prefix backend"
+  }
+}
