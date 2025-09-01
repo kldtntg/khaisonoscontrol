@@ -11,7 +11,6 @@
     <script>
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
-      const state = params.get("state");
 
       if (code) {
         fetch("/exchange-token", {
@@ -22,25 +21,22 @@
             redirect_uri: window.location.origin + "/redirected.html",
           }),
         })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.access_token) {
-              // Save token to localStorage
-              localStorage.setItem("sonos_access_token", data.access_token);
-              const expiresAt = Date.now() + data.expires_in * 1000; // store expiry time
-              localStorage.setItem("sonos_access_token_expires", expiresAt);
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
               document.getElementById("output").textContent =
-                "Access Token saved!";
-
+                "Login successful! Redirecting…";
               // Redirect to control page
               window.location.href = "/control.html";
-              
             } else {
               document.getElementById("output").textContent =
-                "Failed to get access token";
+                "Failed to exchange authorization code.";
             }
           })
-          .catch((err) => console.error(err));
+          .catch(err => {
+            console.error(err);
+            document.getElementById("output").textContent = "Error during login.";
+          });
       } else {
         document.getElementById("output").textContent =
           "No authorization code found.";
