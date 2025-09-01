@@ -257,7 +257,8 @@
 
             if (data.imageUrl) {
               nowPlayingImage.src = data.imageUrl;
-              nowPlayingImage.style.display = "block";
+              nowPlayingImage.style.display = "flex";
+              nowPlayingImage.style.justifyContent = "center";
             } else {
               nowPlayingImage.style.display = "none";
             }
