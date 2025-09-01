@@ -3,38 +3,125 @@
   <head>
     <meta charset="UTF-8" />
     <title>Sonos Control</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f5f6fa;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+      }
+
+      .container {
+        background: #fff;
+        padding: 2rem;
+        margin-top: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        max-width: 600px;
+        width: 100%;
+        text-align: center;
+      }
+
+      h1 {
+        margin-bottom: 1rem;
+        color: #2c3e50;
+      }
+
+      #status {
+        margin-bottom: 1.5rem;
+        font-style: italic;
+        color: #555;
+      }
+
+      select {
+        padding: 0.5rem;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        margin: 0.5rem 0;
+        font-size: 1rem;
+      }
+
+      .section {
+        margin: 1.5rem 0;
+      }
+
+      #nowPlayingSection {
+        border-top: 1px solid #eee;
+        padding-top: 1rem;
+      }
+
+      #nowPlayingText {
+        font-size: 1.1rem;
+        margin: 0.5rem 0;
+        color: #333;
+      }
+
+      #nowPlayingImage {
+        margin-top: 0.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      }
+
+      .controls button {
+        padding: 0.7rem 1.2rem;
+        margin: 0.3rem;
+        border: none;
+        border-radius: 8px;
+        background: #3498db;
+        color: #fff;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      .controls button:hover {
+        background: #2980b9;
+      }
+
+      .controls button:active {
+        background: #1c5980;
+      }
+    </style>
   </head>
   <body>
-    <h1>Sonos Control</h1>
-    <div id="status">Loading...</div>
+    <div class="container">
+      <h1>Sonos Control</h1>
+      <div id="status">Loading...</div>
 
-    <div id="householdSection" style="display: none">
-      <label for="householdSelect">Select Household:</label>
-      <select id="householdSelect"></select>
-    </div>
+      <div id="householdSection" class="section" style="display: none">
+        <label for="householdSelect">Select Household:</label>
+        <br />
+        <select id="householdSelect"></select>
+      </div>
 
-    <div id="groupSection" style="display: none">
-      <label for="groupSelect">Select Group:</label>
-      <select id="groupSelect"></select>
-    </div>
+      <div id="groupSection" class="section" style="display: none">
+        <label for="groupSelect">Select Group:</label>
+        <br />
+        <select id="groupSelect"></select>
+      </div>
 
-    <div id="nowPlayingSection" style="display: none">
-      <h3>Now Playing</h3>
-      <div id="nowPlayingText"></div>
-      <img
-        id="nowPlayingImage"
-        src=""
-        alt=""
-        style="max-width: 200px; display: none"
-      />
-    </div>
+      <div id="nowPlayingSection" class="section" style="display: none">
+        <h3>Now Playing</h3>
+        <div id="nowPlayingText"></div>
+        <img
+          id="nowPlayingImage"
+          src=""
+          alt="Now Playing Art"
+          style="max-width: 200px; display: none"
+        />
+      </div>
 
-    <div id="playersSection" style="display: none">
-      <h3>Commands</h3>
-      <button id="playBtn">Play</button>
-      <button id="pauseBtn">Pause</button>
-      <button id="nextBtn">Next</button>
-      <button id="prevBtn">Previous</button>
+      <div id="playersSection" class="section controls" style="display: none">
+        <h3>Commands</h3>
+        <button id="prevBtn">⏮ Previous</button>
+        <button id="playBtn">▶ Play</button>
+        <button id="pauseBtn">⏸ Pause</button>
+        <button id="nextBtn">⏭ Next</button>
+      </div>
     </div>
 
     <script>
@@ -78,7 +165,7 @@
         } catch (err) {
           console.error(err);
           statusEl.textContent = "Failed to fetch households.";
-          window.location.href = "/"; 
+          window.location.href = "/";
         }
       }
 
@@ -108,7 +195,6 @@
           await apiFetch(`/api/groups/${groupId}/playback/${action}`, {
             method: "POST",
           });
-          alert(`Command '${action}' sent successfully.`);
         } catch (err) {
           console.error(err);
           alert("Failed to send command: " + err.message);
@@ -144,8 +230,8 @@
             nowPlayingImage.style.display = "none";
           } else {
             nowPlayingText.textContent = data.trackName
-              ? `${data.artist.name || "Unknown Artist"} - ${data.trackName} (${
-                  data.album.name || "Unknown Album"
+              ? `${data.artist?.name || "Unknown Artist"} - ${data.trackName} (${
+                  data.album?.name || "Unknown Album"
                 })`
               : data.streamInfo || "Playing unknown content";
 
