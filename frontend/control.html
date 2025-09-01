@@ -1,197 +1,314 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Sonos Control</title>
-</head>
-<body>
-  <h1>Sonos Control</h1>
-  <div id="status">Loading...</div>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sonos Control</title>
+  </head>
+  <body>
+    <h1>Sonos Control</h1>
+    <div id="status">Loading...</div>
 
-  <div id="householdSection" style="display:none;">
-    <label for="householdSelect">Select Household:</label>
-    <select id="householdSelect"></select>
-  </div>
+    <div id="householdSection" style="display: none">
+      <label for="householdSelect">Select Household:</label>
+      <select id="householdSelect"></select>
+    </div>
 
-  <div id="groupSection" style="display:none;">
-    <label for="groupSelect">Select Group:</label>
-    <select id="groupSelect"></select>
-  </div>
+    <div id="groupSection" style="display: none">
+      <label for="groupSelect">Select Group:</label>
+      <select id="groupSelect"></select>
+    </div>
 
-  <div id="playersSection" style="display:none;">
-    <h3>Players in Group</h3>
-    <ul id="playersList"></ul>
-    <button id="playBtn">Play</button>
-    <button id="pauseBtn">Pause</button>
-    <button id="nextBtn">Next</button>
-  </div>
+    <div id="playersSection" style="display: none">
+      <h3>Players in Group</h3>
+      <ul id="playersList"></ul>
+      <button id="playBtn">Play</button>
+      <button id="pauseBtn">Pause</button>
+      <button id="nextBtn">Next</button>
+    </div>
 
-  <script>
-    const MIN_FIRMWARE = "64.10";
-    const token = localStorage.getItem("sonos_access_token");
-    const expires = localStorage.getItem("sonos_access_token_expires");
+    <div id="aiSection" style="display: none; margin-top: 20px">
+      <label for="cityInput">Enter City for Weather:</label>
+      <input type="text" id="cityInput" placeholder="e.g., Toronto" />
+      <button id="aiPlayBtn">Play AI Song for Weather</button>
+    </div>
 
-    // Token check
-    if (!token || Date.now() > expires) {
-      alert("Your Sonos session expired. Please log in again.");
-      localStorage.removeItem("sonos_access_token");
-      localStorage.removeItem("sonos_access_token_expires");
-      window.location.href = "/index.html";
-    }
+    <script>
+      const MIN_FIRMWARE = "64.10";
+      const token = localStorage.getItem("sonos_access_token");
+      const expires = localStorage.getItem("sonos_access_token_expires");
 
-    const statusEl = document.getElementById("status");
-    const householdSelect = document.getElementById("householdSelect");
-    const groupSelect = document.getElementById("groupSelect");
-    const playersList = document.getElementById("playersList");
-    const playBtn = document.getElementById("playBtn");
-    const pauseBtn = document.getElementById("pauseBtn");
-    const nextBtn = document.getElementById("nextBtn");
+      if (!token || Date.now() > expires) {
+        alert("Your Sonos session expired. Please log in again.");
+        localStorage.removeItem("sonos_access_token");
+        localStorage.removeItem("sonos_access_token_expires");
+        window.location.href = "/index.html";
+      }
 
-    function versionToArray(v) {
-      return v.split('.').map(Number);
-    }
+      const statusEl = document.getElementById("status");
+      const householdSelect = document.getElementById("householdSelect");
+      const groupSelect = document.getElementById("groupSelect");
+      const playersList = document.getElementById("playersList");
+      const playBtn = document.getElementById("playBtn");
+      const pauseBtn = document.getElementById("pauseBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const aiSection = document.getElementById("aiSection");
+      const cityInput = document.getElementById("cityInput");
+      const aiPlayBtn = document.getElementById("aiPlayBtn");
 
-    function compareVersions(a, b) {
-      const [aMajor, aMinor] = versionToArray(a);
-      const [bMajor, bMinor] = versionToArray(b);
-      if (aMajor !== bMajor) return aMajor - bMajor;
-      return aMinor - bMinor;
-    }
+      // Sonos API functions
+      async function getHouseholds() {
+        const res = await fetch(
+          "https://api.ws.sonos.com/control/api/v1/households",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              accept: "application/json",
+            },
+          }
+        );
+        const data = await res.json();
+        return data.households || [];
+      }
 
-    async function fetchJson(url) {
-      const res = await fetch(url, {
-        headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    }
+      async function getGroups(householdId) {
+        const res = await fetch(
+          `https://api.ws.sonos.com/control/api/v1/households/${householdId}/groups`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              accept: "application/json",
+            },
+          }
+        );
+        const data = await res.json();
+        return data.groups || [];
+      }
 
-    async function getHouseholds() {
-      const data = await fetchJson("https://api.ws.sonos.com/control/api/v1/households");
-      return data.households || [];
-    }
+      async function getPlayers(playerIds) {
+        const promises = playerIds.map((id) =>
+          fetch(`https://api.ws.sonos.com/control/api/v1/players/${id}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              accept: "application/json",
+            },
+          }).then((res) => res.json())
+        );
+        return Promise.all(promises);
+      }
 
-    async function getGroups(householdId) {
-      const data = await fetchJson(`https://api.ws.sonos.com/control/api/v1/households/${householdId}/groups`);
-      return data.groups || [];
-    }
+      function populateSelect(
+        selectEl,
+        items,
+        valueKey = "id",
+        textKey = "name"
+      ) {
+        selectEl.innerHTML = "";
+        items.forEach((item) => {
+          const opt = document.createElement("option");
+          opt.value = item[valueKey];
+          opt.textContent = item[textKey];
+          selectEl.appendChild(opt);
+        });
+      }
 
-    async function getPlayers(playerIds) {
-      const promises = playerIds.map(id =>
-        fetchJson(`https://api.ws.sonos.com/control/api/v1/players/${id}`)
-      );
-      return Promise.all(promises);
-    }
-
-    function populateSelect(selectEl, items, valueKey="id", textKey="name") {
-      selectEl.innerHTML = "";
-      items.forEach(item => {
-        const opt = document.createElement("option");
-        opt.value = item[valueKey];
-        opt.textContent = item[textKey];
-        selectEl.appendChild(opt);
-      });
-    }
-
-    async function init() {
-      try {
+      async function init() {
         statusEl.textContent = "Fetching households...";
         const households = await getHouseholds();
         if (!households.length) {
           statusEl.textContent = "No households found.";
           return;
         }
+
         populateSelect(householdSelect, households);
         document.getElementById("householdSection").style.display = "block";
         await loadGroups(householdSelect.value);
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Failed to fetch households.";
       }
-    }
 
-    let currentGroups = [];
-
-    async function loadGroups(householdId) {
-      try {
+      async function loadGroups(householdId) {
         statusEl.textContent = "Fetching groups...";
-        currentGroups = await getGroups(householdId);
-        if (!currentGroups.length) {
+        const groups = await getGroups(householdId);
+        if (!groups.length) {
           statusEl.textContent = "No groups found.";
           return;
         }
-        populateSelect(groupSelect, currentGroups);
+
+        populateSelect(groupSelect, groups);
         document.getElementById("groupSection").style.display = "block";
         await loadPlayers(groupSelect.value);
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Failed to fetch groups.";
       }
-    }
 
-    async function loadPlayers(groupId) {
-      try {
+      async function loadPlayers(groupId) {
         statusEl.textContent = "Fetching players...";
-        const selectedGroup = currentGroups.find(g => g.id === groupId);
-        if (!selectedGroup) {
-          statusEl.textContent = "Group not found.";
-          return;
-        }
+        const selectedGroup = (await getGroups(householdSelect.value)).find(
+          (g) => g.id === groupId
+        );
+        if (!selectedGroup) return;
 
         const players = await getPlayers(selectedGroup.playerIds);
         playersList.innerHTML = "";
 
         let allSupported = true;
-        players.forEach(player => {
+        players.forEach((player) => {
           const li = document.createElement("li");
           li.textContent = `${player.name} — Firmware: ${player.firmwareVersion}`;
           playersList.appendChild(li);
-
-          if (compareVersions(player.firmwareVersion, MIN_FIRMWARE) < 0) {
-            allSupported = false;
-          }
+          if (player.firmwareVersion < MIN_FIRMWARE) allSupported = false;
         });
 
-        // playBtn.disabled = pauseBtn.disabled = nextBtn.disabled = !allSupported;
-        // statusEl.textContent = allSupported 
-        //   ? "Ready to control Sonos groups." 
-        //   : "Some players do not meet minimum firmware version!";
-        statusEl.textContent = "Ready to control Sonos groups.";
+        if (!allSupported) {
+          playBtn.disabled = pauseBtn.disabled = nextBtn.disabled = true;
+          statusEl.textContent =
+            "Some players do not meet minimum firmware version!";
+        } else {
+          playBtn.disabled = pauseBtn.disabled = nextBtn.disabled = false;
+          statusEl.textContent = "Ready to control Sonos groups.";
+        }
 
         document.getElementById("playersSection").style.display = "block";
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Failed to fetch players.";
+        aiSection.style.display = "block";
       }
-    }
 
-    householdSelect.addEventListener("change", () => loadGroups(householdSelect.value));
-    groupSelect.addEventListener("change", () => loadPlayers(groupSelect.value));
+      householdSelect.addEventListener("change", () =>
+        loadGroups(householdSelect.value)
+      );
+      groupSelect.addEventListener("change", () =>
+        loadPlayers(groupSelect.value)
+      );
 
-    async function sendCommand(action) {
-      const groupId = groupSelect.value;
-      if (!groupId) return statusEl.textContent = "Select a group first.";
+      async function sendCommand(action) {
+        const groupId = groupSelect.value;
+        if (!groupId) return alert("Select a group first.");
 
-      try {
-        statusEl.textContent = `Sending '${action}' command...`;
-        const res = await fetch(`https://api.ws.sonos.com/control/api/v1/groups/${groupId}/playback/${action}`, {
+        const url = `https://api.ws.sonos.com/control/api/v1/groups/${groupId}/playback/${action}`;
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              accept: "application/json",
+            },
+          });
+          if (res.ok) alert(`Command '${action}' sent successfully.`);
+          else alert(`Error: ${await res.text()}`);
+        } catch (err) {
+          console.error(err);
+          alert("Failed to send command.");
+        }
+      }
+
+      playBtn.addEventListener("click", () => sendCommand("play"));
+      pauseBtn.addEventListener("click", () => sendCommand("pause"));
+      nextBtn.addEventListener("click", () => sendCommand("skipToNextTrack"));
+
+      // --- AI Weather Song ---
+      async function getWeather(city) {
+        const apiKey = "YOUR_OPENWEATHERMAP_API_KEY";
+        const res = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`
+        );
+        const data = await res.json();
+        return data.weather[0].description;
+      }
+
+      async function getSongForWeather(weather) {
+        const prompt = `Suggest a popular song for this weather: "${weather}". Give only "Song Name - Artist".`;
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
-          headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
+          headers: {
+            Authorization: `Bearer YOUR_OPENAI_API_KEY`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4",
+            messages: [{ role: "user", content: prompt }],
+          }),
         });
-
-        if (!res.ok) throw new Error(await res.text());
-        statusEl.textContent = `Command '${action}' sent successfully.`;
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = `Failed to send '${action}' command.`;
+        const data = await res.json();
+        return data.choices[0].message.content.trim();
       }
-    }
 
-    playBtn.addEventListener("click", () => sendCommand("play"));
-    pauseBtn.addEventListener("click", () => sendCommand("pause"));
-    nextBtn.addEventListener("click", () => sendCommand("skipToNextTrack"));
+      // For demo purposes, convert song name to URI manually or via your Sonos Music API integration
+      function convertSongToUri(song) {
+        // This is just a placeholder; real implementation requires Spotify/Apple track URI
+        return `x-sonos-spotify:spotify:track:TRACK_ID?sid=9&flags=8224&sn=1`;
+      }
 
-    init();
-  </script>
-</body>
+      async function playAiSong() {
+        try {
+          // 1: Ask AI for a song based on weather
+          const weatherRes = await fetch(
+            "https://api.openweathermap.org/data/2.5/weather?q=Toronto&appid=YOUR_OPENWEATHER_API_KEY"
+          );
+          const weatherData = await weatherRes.json();
+          const weatherDescription = weatherData.weather[0].main; // e.g., "Clear", "Rain", etc.
+
+          // Simple AI logic: pick a song based on weather
+          let song;
+          if (weatherDescription === "Clear")
+            song = "Walking on Sunshine - Katrina & The Waves";
+          else if (weatherDescription === "Rain")
+            song = "Rainy Days and Mondays - Carpenters";
+          else if (weatherDescription === "Clouds")
+            song = "Cloudy Day - Lighthouse Family";
+          else song = "Here Comes the Sun - The Beatles";
+
+          // 2: Search Spotify for track ID
+          const SPOTIFY_TOKEN = "YOUR_SPOTIFY_OAUTH_TOKEN"; // Replace with a valid token
+          const searchRes = await fetch(
+            `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+              song
+            )}&type=track&limit=1`,
+            {
+              headers: { Authorization: `Bearer ${SPOTIFY_TOKEN}` },
+            }
+          );
+          const searchData = await searchRes.json();
+          if (!searchData.tracks.items.length)
+            throw new Error("Song not found on Spotify");
+          const trackId = searchData.tracks.items[0].id;
+
+          // 3️⃣ Convert to Sonos URI
+          const sonosUri = `x-sonos-spotify:spotify:track:${trackId}?sid=9&flags=8224&sn=1`;
+
+          // 4️⃣ Send command to Sonos (example: play in first selected group)
+          const groupId = groupSelect.value;
+          if (!groupId) return alert("Select a Sonos group first!");
+
+          // Load the track
+          await fetch(
+            `https://api.ws.sonos.com/control/api/v1/groups/${groupId}/playback/setTrack`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ uri: sonosUri }),
+            }
+          );
+
+          // Play it
+          await fetch(
+            `https://api.ws.sonos.com/control/api/v1/groups/${groupId}/playback/play`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+
+          alert(
+            `Playing "${song}" based on current weather: ${weatherDescription}`
+          );
+        } catch (err) {
+          console.error(err);
+          alert("Failed to play AI song: " + err.message);
+        }
+      }
+
+      aiPlayBtn.addEventListener("click", playAiSong);
+
+      // Initialize page
+      init();
+    </script>
+  </body>
 </html>

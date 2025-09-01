@@ -14,6 +14,8 @@ app.use(express.static(path.join(__dirname, "../frontend")));
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 
+console.log('khai', process.env.CLIENT_ID, process.env.CLIENT_SECRET)
+
 // Endpoint to generate Sonos auth URL
 app.post("/auth-url", (req, res) => {
   const { redirect_uri, state } = req.body;
@@ -24,6 +26,7 @@ app.post("/auth-url", (req, res) => {
 
 app.post("/exchange-token", async (req, res) => {
   const { code, redirect_uri } = req.body;
+  console.log('khai', code, redirect_uri)
 
   try {
     const params = new URLSearchParams();
@@ -34,20 +37,29 @@ app.post("/exchange-token", async (req, res) => {
     const response = await fetch("https://api.sonos.com/login/v3/oauth/access", {
       method: "POST",
       headers: {
-        "Authorization": "Basic " + Buffer.from(CLIENT_ID + ":" + CLIENT_SECRET).toString("base64"),
+        "Authorization": "Basic " + Buffer.from(
+          process.env.CLIENT_ID + ":" + process.env.CLIENT_SECRET
+        ).toString("base64"),
         "Content-Type": "application/x-www-form-urlencoded"
       },
       body: params
     });
 
-    const tokens = await response.json();
-    res.json(tokens);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Sonos token error:", data);
+      return res.status(response.status).json(data);
+    }
+
+    res.json(data);
 
   } catch (err) {
-    console.error(err);
+    console.error("Exchange token failed:", err);
     res.status(500).json({ error: "Failed to exchange code" });
   }
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
