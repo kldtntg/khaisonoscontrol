@@ -158,6 +158,33 @@ app.post("/api/groups/:groupId/playback/:action", async (req, res) => {
   }
 });
 
+// Get currently playing track for a group
+app.get("/api/groups/:groupId/nowPlaying", async (req, res) => {
+  try {
+    const data = await sonosApi(`/groups/${req.params.groupId}/playbackMetadata`);
+
+    // Extract relevant info
+    const currentItem = data?.currentItem;
+    const track = currentItem?.track;
+    const container = data?.container;
+
+    const nowPlaying = {
+      containerName: container?.name || null,
+      containerType: container?.type || null,
+      trackName: track?.name || null,
+      artist: track?.artist || null,
+      album: track?.album || null,
+      imageUrl: track?.images?.[0]?.url || null,
+      streamInfo: container?.streamInfo || null,
+    };
+
+    res.json(nowPlaying);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch now playing info" });
+  }
+});
+
 // ------------------ Start server ------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
