@@ -140,8 +140,8 @@
             nowPlayingImage.style.display = "none";
           } else {
             nowPlayingText.textContent = data.trackName
-              ? `${data.artist || "Unknown Artist"} - ${data.trackName} (${
-                  data.album || "Unknown Album"
+              ? `${data.artist.name || "Unknown Artist"} - ${data.trackName} (${
+                  data.album.name || "Unknown Album"
                 })`
               : data.streamInfo || "Playing unknown content";
 
@@ -160,8 +160,8 @@
         }
       }
 
-      // Poll every 5 seconds
-      setInterval(loadNowPlaying, 5000);
+      // Poll every 2 seconds
+      setInterval(loadNowPlaying, 2000);
 
       // load immediately when group changes
       groupSelect.addEventListener("change", () => {
