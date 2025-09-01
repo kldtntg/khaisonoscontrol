@@ -5,8 +5,9 @@
     <title>Sonos Control</title>
     <style>
       body {
-        font-family: Arial, sans-serif;
-        background: #f5f6fa;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        background: #000;
+        color: #fff;
         margin: 0;
         padding: 0;
         display: flex;
@@ -16,11 +17,11 @@
       }
 
       .container {
-        background: #fff;
+        background: #111;
         padding: 2rem;
         margin-top: 2rem;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
         max-width: 600px;
         width: 100%;
         text-align: center;
@@ -28,21 +29,30 @@
 
       h1 {
         margin-bottom: 1rem;
-        color: #2c3e50;
+        font-weight: 500;
+        letter-spacing: 1px;
       }
 
       #status {
         margin-bottom: 1.5rem;
         font-style: italic;
-        color: #555;
+        color: #bbb;
+      }
+
+      label {
+        font-size: 0.9rem;
+        color: #aaa;
       }
 
       select {
         padding: 0.5rem;
         border-radius: 6px;
-        border: 1px solid #ccc;
+        border: 1px solid #333;
         margin: 0.5rem 0;
         font-size: 1rem;
+        background: #000;
+        color: #fff;
+        width: 80%;
       }
 
       .section {
@@ -50,40 +60,52 @@
       }
 
       #nowPlayingSection {
-        border-top: 1px solid #eee;
+        border-top: 1px solid #222;
         padding-top: 1rem;
       }
 
       #nowPlayingText {
         font-size: 1.1rem;
         margin: 0.5rem 0;
-        color: #333;
+        color: #fff;
       }
 
       #nowPlayingImage {
-        margin-top: 0.5rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        margin-top: 1rem;
+        border-radius: 12px;
+        display: none;
+        max-width: 250px;
+        width: 100%;
+        height: auto;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8);
+      }
+
+      .controls {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
       }
 
       .controls button {
-        padding: 0.7rem 1.2rem;
-        margin: 0.3rem;
-        border: none;
-        border-radius: 8px;
-        background: #3498db;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        background: transparent;
         color: #fff;
-        font-size: 1rem;
+        font-size: 1.2rem;
         cursor: pointer;
-        transition: background 0.2s ease;
+        width: 60px;
+        height: 60px;
+        transition: all 0.2s ease;
       }
 
       .controls button:hover {
-        background: #2980b9;
+        background: #fff;
+        color: #000;
       }
 
-      .controls button:active {
-        background: #1c5980;
+      .controls h3 {
+        display: none; /* hide label, buttons are enough */
       }
     </style>
   </head>
@@ -111,16 +133,14 @@
           id="nowPlayingImage"
           src=""
           alt="Now Playing Art"
-          style="max-width: 200px; display: none"
         />
       </div>
 
       <div id="playersSection" class="section controls" style="display: none">
-        <h3>Commands</h3>
-        <button id="prevBtn">⏮ Previous</button>
-        <button id="playBtn">▶ Play</button>
-        <button id="pauseBtn">⏸ Pause</button>
-        <button id="nextBtn">⏭ Next</button>
+        <button id="prevBtn">⏮</button>
+        <button id="playBtn">▶</button>
+        <button id="pauseBtn">⏸</button>
+        <button id="nextBtn">⏭</button>
       </div>
     </div>
 
