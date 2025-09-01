@@ -179,7 +179,6 @@ app.get("/api/groups/:groupId/nowPlaying", async (req, res) => {
     };
 
     res.json(nowPlaying);
-    console.log("Now Playing:", nowPlaying);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch now playing info" });
