@@ -1,154 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Sonos Control</title>
-  </head>
-  <body>
-    <h1>Sonos Control</h1>
-    <div id="status">Loading...</div>
+<head>
+  <meta charset="UTF-8" />
+  <title>Sonos Control</title>
+</head>
+<body>
+  <h1>Sonos Control</h1>
+  <div id="status">Loading...</div>
 
-    <div id="householdSection" style="display: none">
-      <label for="householdSelect">Select Household:</label>
-      <select id="householdSelect"></select>
-    </div>
+  <div id="householdSection" style="display: none">
+    <label for="householdSelect">Select Household:</label>
+    <select id="householdSelect"></select>
+  </div>
 
-    <div id="groupSection" style="display: none">
-      <label for="groupSelect">Select Group:</label>
-      <select id="groupSelect"></select>
-    </div>
+  <div id="groupSection" style="display: none">
+    <label for="groupSelect">Select Group:</label>
+    <select id="groupSelect"></select>
+  </div>
 
-    <div id="playersSection" style="display: none">
-      <h3>Commands</h3>
-      <!-- <ul id="playersList"></ul> -->
-      <button id="playBtn">Play</button>
-      <button id="pauseBtn">Pause</button>
-      <button id="nextBtn">Next</button>
-    </div>
+  <div id="playersSection" style="display: none">
+    <h3>Commands</h3>
+    <button id="playBtn">Play</button>
+    <button id="pauseBtn">Pause</button>
+    <button id="nextBtn">Next</button>
+  </div>
 
-    <script>
-      const token = localStorage.getItem("sonos_access_token");
-      // const token = "OyDG2sKSS7CBGvf79cGSH8O8ndlw";
+  <script>
+    const statusEl = document.getElementById("status");
+    const householdSelect = document.getElementById("householdSelect");
+    const groupSelect = document.getElementById("groupSelect");
+    const playBtn = document.getElementById("playBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const nextBtn = document.getElementById("nextBtn");
 
-      if (!token) {
-        alert("Missing Sonos token. Please log in.");
-      }
+    // Backend proxy fetch (no token needed)
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(`${window.location.origin}${path}`, options);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
 
-      const statusEl = document.getElementById("status");
-      const householdSelect = document.getElementById("householdSelect");
-      const groupSelect = document.getElementById("groupSelect");
-      const playersList = document.getElementById("playersList");
-      const playBtn = document.getElementById("playBtn");
-      const pauseBtn = document.getElementById("pauseBtn");
-      const nextBtn = document.getElementById("nextBtn");
+    function populateSelect(selectEl, items) {
+      selectEl.innerHTML = "";
+      items.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = item.id;
+        selectEl.appendChild(opt);
+      });
+    }
 
-      // Helper to fetch via backend proxy
-      async function apiFetch(path, options = {}) {
-        options.headers = {
-          ...options.headers,
-          Authorization: `Bearer ${token}`,
-        };
-        const res = await fetch(`http://localhost:3000${path}`, options);
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
-      }
-
-      function populateSelect(selectEl, items) {
-        selectEl.innerHTML = "";
-        items.forEach((item) => {
-          const opt = document.createElement("option");
-          opt.value = item.id;
-          opt.textContent = `${item.id}`;
-          selectEl.appendChild(opt);
-        });
-      }
-
-      async function loadHouseholds() {
-        try {
-          statusEl.textContent = "Fetching households...";
-          const data = await apiFetch("/api/households");
-          const households = data.households || [];
-          if (!households.length) {
-            statusEl.textContent = "No households found.";
-            return;
-          }
-          populateSelect(householdSelect, households);
-          document.getElementById("householdSection").style.display = "block";
-          loadGroups(householdSelect.value);
-        } catch (err) {
-          console.error(err);
-          statusEl.textContent = "Failed to fetch households.";
+    async function loadHouseholds() {
+      try {
+        statusEl.textContent = "Fetching households...";
+        const data = await apiFetch("/api/households");
+        const households = data.households || [];
+        if (!households.length) {
+          statusEl.textContent = "No households found.";
+          return;
         }
+        populateSelect(householdSelect, households);
+        document.getElementById("householdSection").style.display = "block";
+        loadGroups(householdSelect.value);
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Failed to fetch households.";
       }
+    }
 
-      async function loadGroups(householdId) {
-        try {
-          statusEl.textContent = "Fetching groups...";
-          const data = await apiFetch(`/api/groups/${householdId}`);
-          const groups = data.groups || [];
-          if (!groups.length) {
-            statusEl.textContent = "No groups found.";
-            return;
-          }
-          populateSelect(groupSelect, groups);
-          document.getElementById("groupSection").style.display = "block";
-          document.getElementById("playersSection").style.display = "block";
-
-          // loadPlayers(groupSelect.value);
-        } catch (err) {
-          console.error(err);
-          statusEl.textContent = "Failed to fetch groups.";
+    async function loadGroups(householdId) {
+      try {
+        statusEl.textContent = "Fetching groups...";
+        const data = await apiFetch(`/api/groups/${householdId}`);
+        const groups = data.groups || [];
+        if (!groups.length) {
+          statusEl.textContent = "No groups found.";
+          return;
         }
+        populateSelect(groupSelect, groups);
+        document.getElementById("groupSection").style.display = "block";
+        document.getElementById("playersSection").style.display = "block";
+        statusEl.textContent = "Ready to control Sonos group.";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Failed to fetch groups.";
       }
+    }
 
-      // async function loadPlayers(groupId) {
-      //   try {
-      //     statusEl.textContent = "Fetching players...";
-      //     const groups = (await apiFetch(`/api/groups/${householdSelect.value}`)).groups;
-      //     const selectedGroup = groups.find(g => g.id === groupId);
-      //     if (!selectedGroup) return;
-
-      //     const players = await Promise.all(selectedGroup.playerIds.map(id => apiFetch(`/api/players/${id}`)));
-
-      //     players.forEach(player => {
-      //       const li = document.createElement("li");
-      //       playersList.appendChild(li);
-      //     });
-
-      //       playBtn.disabled = pauseBtn.disabled = nextBtn.disabled = false;
-      //       statusEl.textContent = "Ready to control Sonos groups.";
-
-      //   } catch (err) {
-      //     console.error(err);
-      //     statusEl.textContent = "Failed to fetch players.";
-      //   }
-      // }
-
-      async function sendCommand(action) {
-        try {
-          const groupId = groupSelect.value;
-          if (!groupId) return alert("Select a group first.");
-          await apiFetch(`/api/groups/${groupId}/playback/${action}`, {
-            method: "POST",
-          });
-          alert(`Command '${action}' sent successfully.`);
-        } catch (err) {
-          console.error(err);
-          alert("Failed to send command: " + err.message);
-        }
+    async function sendCommand(action) {
+      try {
+        const groupId = groupSelect.value;
+        if (!groupId) return alert("Select a group first.");
+        await apiFetch(`/api/groups/${groupId}/playback/${action}`, { method: "POST" });
+        alert(`Command '${action}' sent successfully.`);
+      } catch (err) {
+        console.error(err);
+        alert("Failed to send command: " + err.message);
       }
+    }
 
-      // Event listeners
-      householdSelect.addEventListener("change", () =>
-        loadGroups(householdSelect.value)
-      );
-      // groupSelect.addEventListener("change", () => loadPlayers(groupSelect.value));
-      playBtn.addEventListener("click", () => sendCommand("play"));
-      pauseBtn.addEventListener("click", () => sendCommand("pause"));
-      nextBtn.addEventListener("click", () => sendCommand("skipToNextTrack"));
+    // Event listeners
+    householdSelect.addEventListener("change", () => loadGroups(householdSelect.value));
+    playBtn.addEventListener("click", () => sendCommand("play"));
+    pauseBtn.addEventListener("click", () => sendCommand("pause"));
+    nextBtn.addEventListener("click", () => sendCommand("skipToNextTrack"));
 
-      // Initialize
-      loadHouseholds();
-    </script>
-  </body>
+    // Initialize
+    loadHouseholds();
+  </script>
+</body>
 </html>
